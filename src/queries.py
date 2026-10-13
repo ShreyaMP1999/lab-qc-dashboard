@@ -7,22 +7,46 @@ against a self-referencing summary.
 
 import os
 import sqlite3
+from contextlib import contextmanager
 
 import pandas as pd
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "lab_qc.db")
+DEFAULT_DB_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "data", "lab_qc.db")
+)
+DB_PATH = os.environ.get("LAB_QC_DB_PATH", DEFAULT_DB_PATH)
 
 
+def ensure_database():
+    """Create the demo database when a fresh checkout does not have one yet."""
+    if os.path.exists(DB_PATH):
+        return
+
+    if DB_PATH != DEFAULT_DB_PATH:
+        raise FileNotFoundError(
+            f"LAB_QC_DB_PATH points to a missing database: {DB_PATH}"
+        )
+
+    from src.generate_data import main as generate_database
+
+    generate_database()
+
+
+@contextmanager
 def get_connection():
-    return sqlite3.connect(DB_PATH)
+    ensure_database()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def get_filter_options():
     """Distinct sites and assays for dashboard filter dropdowns."""
-    conn = get_connection()
-    sites = pd.read_sql("SELECT DISTINCT site FROM qc_results ORDER BY site", conn)["site"].tolist()
-    assays = pd.read_sql("SELECT DISTINCT assay FROM qc_results ORDER BY assay", conn)["assay"].tolist()
-    conn.close()
+    with get_connection() as conn:
+        sites = pd.read_sql("SELECT DISTINCT site FROM qc_results ORDER BY site", conn)["site"].tolist()
+        assays = pd.read_sql("SELECT DISTINCT assay FROM qc_results ORDER BY assay", conn)["assay"].tolist()
     return sites, assays
 
 
@@ -43,9 +67,8 @@ def summary_by_site_assay():
         GROUP BY site, assay
         ORDER BY pass_rate_pct ASC
     """
-    conn = get_connection()
-    df = pd.read_sql(query, conn)
-    conn.close()
+    with get_connection() as conn:
+        df = pd.read_sql(query, conn)
     return df
 
 
@@ -65,9 +88,8 @@ def daily_trend(site, assay, control_level):
         GROUP BY run_date
         ORDER BY run_date
     """
-    conn = get_connection()
-    df = pd.read_sql(query, conn, params=[site, assay, control_level])
-    conn.close()
+    with get_connection() as conn:
+        df = pd.read_sql(query, conn, params=[site, assay, control_level])
     return df
 
 
@@ -90,9 +112,8 @@ def rolling_out_of_range_rate(site, assay):
         WHERE site = ? AND assay = ?
         ORDER BY control_level, run_date
     """
-    conn = get_connection()
-    df = pd.read_sql(query, conn, params=[site, assay])
-    conn.close()
+    with get_connection() as conn:
+        df = pd.read_sql(query, conn, params=[site, assay])
     return df
 
 
@@ -128,9 +149,8 @@ def worst_performing_combinations(min_runs=50, limit=5):
         ORDER BY s.pass_rate ASC
         LIMIT ?
     """
-    conn = get_connection()
-    df = pd.read_sql(query, conn, params=[min_runs, limit])
-    conn.close()
+    with get_connection() as conn:
+        df = pd.read_sql(query, conn, params=[min_runs, limit])
     return df
 
 
