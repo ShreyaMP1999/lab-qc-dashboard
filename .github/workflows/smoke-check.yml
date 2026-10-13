@@ -1,0 +1,30 @@
+name: Smoke check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate database
+        run: python src/generate_data.py
+
+      - name: Run smoke check
+        run: python scripts/smoke_check.py
+
+      - name: Compile Python files
+        run: python -m compileall src dashboard scripts
