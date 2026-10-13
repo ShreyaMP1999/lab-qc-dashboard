@@ -20,7 +20,7 @@ that monitoring problem with realistic synthetic QC data.
 - 3 control levels (Low, Medium, High)
 
 That's 11,520 rows, loaded into a SQLite database (`data/lab_qc.db`) with
-indexes on site/assay and run_date, and a ~2.3% baseline out-of-range rate
+indexes on site/assay and run_date, and a ~2.6% baseline out-of-range rate
 with injected drift events, so the dashboard has something real to surface.
 
 ## SQL querying (`src/queries.py`)
@@ -69,15 +69,23 @@ lab-qc-dashboard/
 ```bash
 pip install -r requirements.txt
 
-# 1. Generate the dataset and load it into SQLite
+# 1. Generate the dataset and load it into SQLite.
+# The dashboard can also rebuild this automatically on a fresh checkout.
 python src/generate_data.py
 
-# 2. (optional) sanity-check the queries directly
+# 2. Sanity-check the generated database and core queries
+python scripts/smoke_check.py
+
+# 3. (optional) inspect the query output directly
 python src/queries.py
 
-# 3. Run the dashboard
+# 4. Run the dashboard
 streamlit run dashboard/app.py
 ```
+
+If you need to point the query layer at a different SQLite file, set
+`LAB_QC_DB_PATH=/path/to/lab_qc.db` before running the smoke check or
+dashboard.
 
 ## Notes
 
