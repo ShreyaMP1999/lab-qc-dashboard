@@ -15,11 +15,10 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 
-np.random.seed(42)
-
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, "lab_qc.db")
+RANDOM_SEED = 42
 
 SITES = ["Irvine", "Chicago", "Austin", "Raleigh"]
 ASSAYS = [
@@ -34,7 +33,8 @@ START_DATE = datetime(2025, 6, 1)
 N_DAYS = 240  # 8 months of daily QC runs
 
 
-def generate():
+def generate(seed=RANDOM_SEED):
+    rng = np.random.default_rng(seed)
     rows = []
     run_id = 1
     for day_offset in range(N_DAYS):
@@ -47,11 +47,11 @@ def generate():
                     level_multiplier = {"Low": 0.7, "Medium": 1.0, "High": 1.3}[level]
 
                     mean = assay["target_mean"] * level_multiplier
-                    value = np.random.normal(mean * (1 + site_bias), assay["sd"] * level_multiplier)
+                    value = rng.normal(mean * (1 + site_bias), assay["sd"] * level_multiplier)
 
                     # Inject occasional drift/outlier events to make the data realistic
-                    if np.random.random() < 0.015:
-                        value += np.random.choice([-1, 1]) * assay["sd"] * 4
+                    if rng.random() < 0.015:
+                        value += rng.choice([-1, 1]) * assay["sd"] * 4
 
                     lsl = assay["lsl"] * level_multiplier
                     usl = assay["usl"] * level_multiplier
